@@ -1,0 +1,21 @@
+from __future__ import absolute_import, print_function
+from setuptools import setup, find_packages
+from os import path
+
+_dir = path.abspath(path.dirname(__file__))
+
+with open(path.join(_dir, "plausible_events", "version.py")) as f:
+    exec(f.read())
+
+setup(
+    name="plausible-events",
+    version=__version__,
+    description="Plausible.io Events API",
+    license="BSD 3-Clause License",
+    packages=find_packages(),
+    python_requires=">=3.7",
+    install_requires=[
+        "requests",
+        # "miniupnpc",
+    ],
+)
