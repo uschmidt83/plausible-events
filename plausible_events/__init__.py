@@ -40,7 +40,6 @@ class PlausibleEvents:
         self.cond = threading.Condition()
         self.queue = []
         self.worker = Worker(self.cond, self.queue, timeout)
-        self.worker.start()
 
         def default_headers():
             self.headers = {
@@ -49,9 +48,11 @@ class PlausibleEvents:
             if headers is not None:
                 self.headers.update(headers)
 
-        self._enqueue_task(default_headers)
+        self._enqueue_task(default_headers, False)
 
-    def _enqueue_task(self, task: callable):
+    def _enqueue_task(self, task: callable, start_worker: bool = True):
+        if start_worker and not self.worker.is_alive():
+            self.worker.start()
         with self.cond:
             self.queue.append(task)
             self.cond.notify()
