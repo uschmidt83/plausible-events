@@ -1,28 +1,40 @@
-import requests, threading, time
-import miniupnpc
+import threading
+import time
 from urllib.parse import urlencode
+
+# import miniupnpc
+import requests
+
+from .version import __version__
 
 UTM_TERMS = "campaign", "source", "medium", "term", "content"
 
 
+def _print_debug(debug):
+    return (lambda *args: print(*args, flush=True)) if debug else (lambda *args: None)
+
+
 class Worker(threading.Thread):
-    def __init__(self, cond: threading.Condition, queue: list, timeout: float):
+    def __init__(self, cond: threading.Condition, queue: list, timeout: float, debug: bool = False):
         super().__init__()
         self.cond = cond
         self.queue = queue
         self.timeout = timeout
+        self.print = _print_debug(debug)
 
     def run(self):
-        with self.cond:
-            while True:
+        while True:
+            with self.cond:
                 if self.cond.wait_for(lambda: len(self.queue) > 0):
-                    try:
-                        task = self.queue.pop(0)
-                        task()
-                    except Exception as e:
-                        # print(e)
-                        self.queue.insert(0, task)
-                        time.sleep(self.timeout)
+                    task = self.queue.pop(0)
+            try:
+                self.print("worker: run task")
+                task()
+            except Exception as e:
+                self.print(f"worker: exception {repr(e)}")
+                with self.cond:
+                    self.queue.insert(0, task)
+                time.sleep(self.timeout)
 
 
 class PlausibleEvents:
@@ -34,12 +46,14 @@ class PlausibleEvents:
         headers: dict = None,
         timeout: float = 5.0,
         api: str = "https://plausible.io/api/event",
+        debug: bool = False,
     ):
         self.api = api
         self.domain = domain
         self.cond = threading.Condition()
         self.queue = []
-        self.worker = Worker(self.cond, self.queue, timeout)
+        self.worker = Worker(self.cond, self.queue, timeout, debug)
+        self.print = _print_debug(debug)
 
         def default_headers():
             self.headers = {
@@ -52,7 +66,10 @@ class PlausibleEvents:
 
     def _enqueue_task(self, task: callable, start_worker: bool = True):
         if start_worker and not self.worker.is_alive():
+            self.print("main:   start worker")
             self.worker.start()
+
+        self.print("main:   append task")
         with self.cond:
             self.queue.append(task)
             self.cond.notify()
@@ -71,7 +88,6 @@ class PlausibleEvents:
         return r.text.strip()
 
     def _event(self, name: str, path: str, headers: dict = None, utm: dict = None, props: dict = None):
-        path = str(path)
         if path.startswith("/"):
             path = path[1:]
         _headers = self.headers
@@ -97,9 +113,8 @@ class PlausibleEvents:
                 props=props,
             ),
         )
-        # print(f"_event(name='{name}', path='{path}', headers={headers}, utm={utm}, props={props})")
-        # print(r.headers)
         r.raise_for_status()
+        self.print(f"event:  name='{name}', path='{path}', headers={headers}, utm={utm}, props={props}")
         return r
 
     def pageview(self, path: str, utm: dict = None, headers: dict = None):
