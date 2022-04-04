@@ -1,5 +1,7 @@
 # plausible-events
 
+[![PyPI version](https://img.shields.io/pypi/v/plausible-events.svg)](https://pypi.org/project/plausible-events)
+
 This small library allows to easily use the [Plausible Events API](https://plausible.io/docs/events-api).
 
 - **Privacy-focused.**
@@ -10,6 +12,11 @@ This small library allows to easily use the [Plausible Events API](https://plaus
 - **Doesn't show errors, but tries again.**
   Failed event recordings are re-tried indefinitely, i.e. events aren't lost if network connectivity is temporarily interrupted.
 
+## Installation
+
+```
+pip install plausible-events
+```
 
 ## Examples
 
